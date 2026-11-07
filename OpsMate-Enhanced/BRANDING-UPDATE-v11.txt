@@ -1,0 +1,6 @@
+OpsMate v11 branding update
+- Sidebar expanded: uploaded Vanguard V image plus OpsMate text.
+- Sidebar collapsed: uploaded Vanguard V image.
+- Refined burgundy, white, and neutral UI colors; HR charts retain burgundy accents.
+- Existing agents, chat, dashboards, and dependencies retained.
+- Logo source: user-supplied image.

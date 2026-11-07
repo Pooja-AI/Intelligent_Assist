@@ -1,0 +1,14 @@
+OpsMate v9 - Angular dependency alignment
+
+This project uses Angular 19 throughout, with TypeScript 5.7.
+Do not mix Angular 22 with Angular 19 packages.
+
+Open CMD in frontend and run:
+  node -v
+  if exist node_modules rmdir /s /q node_modules
+  if exist package-lock.json del package-lock.json
+  npm install
+  npm start
+
+Use a Node.js version supported by Angular 19 (Node 18.19.1+, 20.11.1+, or 22+ within Angular 19 supported ranges).
+The package-lock.json is intentionally omitted so npm can regenerate it.

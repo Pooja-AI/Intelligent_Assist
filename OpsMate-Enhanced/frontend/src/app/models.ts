@@ -1,0 +1,4 @@
+export type ResultKind = 'text' | 'status' | 'logs' | 'table' | 'workflow' | 'architecture' | 'dashboard';
+export interface LogRow { time: string; level: string; service: string; message: string }
+export interface PluginResult { schemaVersion: '1.0'; responseType: ResultKind; title: string; summary: string; data?: { columns?: string[]; rows?: string[][]; logs?: LogRow[]; status?: string; details?: Record<string,string>; steps?: string[]; highlights?: {label:string;value:string}[]; dashboard?: {period:string; kpis:{label:string;value:string;change:string}[]; headcount:{month:string;value:number}[]; departments:{name:string;value:number}[]; hiring:{stage:string;value:number}[]; attritionRate:number; insights:string[]}; sections?: {heading:string;body:string}[] }; sources?: string[]; requestId?: string }
+export interface Message { id: number; role: 'user' | 'assistant'; text: string; result?: PluginResult; time: string; greeting?: boolean }

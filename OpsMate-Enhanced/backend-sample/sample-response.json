@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0",
+  "responseType": "logs",
+  "title": "Application log investigation",
+  "summary": "Example response only",
+  "requestId": "sample-123",
+  "data": {
+    "logs": [
+      {
+        "time": "10:42:18",
+        "level": "ERROR",
+        "service": "AEM Publish",
+        "message": "Cache invalidation failed"
+      }
+    ]
+  },
+  "sources": [
+    "Sample CloudWatch log group"
+  ]
+}

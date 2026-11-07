@@ -1,0 +1,1 @@
+Fixed Angular asset serving by declaring src/assets in frontend/angular.json. Updated sidebar logo URLs to /assets/vanguard-v.png. Existing image and UI preserved.

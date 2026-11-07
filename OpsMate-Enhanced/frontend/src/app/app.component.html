@@ -1,0 +1,86 @@
+<div class="shell" [class.collapsed]="!sidebarOpen" [class.dark]="darkMode">
+  <aside class="sidebar" [class.rail]="!sidebarOpen">
+    <div class="brand">
+      <img class="vanguard-logo vanguard-logo-compact" *ngIf="!sidebarOpen" src="/assets/vanguard-v.png" alt="Vanguard logo"/>
+      <div class="brand-identity" *ngIf="sidebarOpen"><img class="vanguard-logo" src="/assets/vanguard-v.png" alt="Vanguard logo"/><span class="brand-name">OpsMate</span></div>
+      <button class="icon-button toggle-side" [attr.aria-label]="sidebarOpen?'Collapse sidebar':'Expand sidebar'" [title]="sidebarOpen?'Collapse sidebar':'Expand sidebar'" (click)="sidebarOpen=!sidebarOpen">☰</button>
+    </div>
+    <div class="side-list">
+      <button class="side-item primary-item" (click)="newChat()" title="New chat"><span class="ico accent">＋</span><span class="lbl">New chat</span></button>
+      <button class="side-item" (click)="openSearch()" title="Search chats" aria-label="Search chats"><span class="ico">⌕</span><span class="lbl">Search chats</span></button>
+    </div>
+    <nav class="side-list" aria-label="Primary navigation">
+      <button class="side-item" *ngFor="let item of ['Home','Agents','Plugins','Reports']" [class.active]="activeTab===item" [title]="item" (click)="setTab(item)"><span class="ico">{{item==='Home'?'⌂':item==='Agents'?'◇':item==='Plugins'?'▦':'▥'}}</span><span class="lbl">{{item}}</span></button>
+    </nav>
+    <div class="recents lbl" *ngIf="sidebarOpen">
+      <div class="section-label">RECENTS</div>
+      <button class="recent-item" *ngFor="let h of recents" (click)="openHistory(h.index)" [title]="h.name">{{h.name}}</button>
+      <p class="muted hint" *ngIf="!history().length">Your chats will appear here.</p>
+    </div>
+    <div class="side-spacer"></div>
+    <div class="user-menu" *ngIf="showUserMenu">
+      <button (click)="showPromptLibrary=!showPromptLibrary;showUserMenu=false;setTab('Home')">☷ Prompt library</button>
+      <button (click)="darkMode=!darkMode;showUserMenu=false">◐ {{darkMode ? 'Light' : 'Dark'}} theme</button>
+      <button (click)="exportChat();showUserMenu=false" [disabled]="!hasMessages()">↓ Export chat</button>
+    </div>
+    <button class="sidebar-footer" (click)="showUserMenu=!showUserMenu" title="Workspace menu"><div class="avatar">D</div><div class="lbl"><strong>Demo workspace</strong><small>Mock mode · No live connections</small></div></button>
+  </aside>
+  <div class="search-overlay" *ngIf="showSearch" (click)="closeSearch()"><div class="search-modal" role="dialog" aria-label="Search conversations" (click)="$event.stopPropagation()" (keydown.escape)="closeSearch()"><div class="search-head"><span>⌕</span><input id="history-search-input" [(ngModel)]="historySearch" placeholder="Search chats..." aria-label="Search conversations" autocomplete="off"/><button class="icon-button" (click)="closeSearch()" aria-label="Close search">✕</button></div><div class="search-list"><button *ngFor="let h of filteredHistory" (click)="openHistory(h.index)" [title]="h.name"><strong>{{h.name}}</strong><small>{{h.agent}} · {{h.count}} messages</small></button><p class="muted hint" *ngIf="!history().length">No conversations yet. Your chats will appear here.</p><p class="muted hint" *ngIf="history().length && !filteredHistory.length">No chats match your search.</p></div></div></div>
+
+  <ng-template #composerTpl>
+    <form class="composer" (ngSubmit)="send()">
+      <textarea name="query" [(ngModel)]="query" placeholder="How can I help you today?" rows="1" aria-label="Message OpsMate" (input)="autoGrow($event)" (keydown)="onComposerKeydown($event)"></textarea>
+      <div class="composer-bottom"><span class="agent-chip" *ngIf="hasMessages()">{{agentIcon(agent)}} {{agent}}{{agent==='AEM Agent' ? ' · '+lob : ''}}</span><span class="agent-chip" *ngIf="!hasMessages()">✦ Select an agent</span><button type="submit" class="send" [disabled]="!query.trim()||busy" aria-label="Send message">↑</button></div>
+    </form>
+  </ng-template>
+  <ng-template #agentPills>
+    <div class="agent-selection"><div class="agent-pills" role="group" aria-label="Available agents"><button type="button" class="agent-pill" *ngFor="let a of agents" [class.selected]="showAemOptions && a==='AEM Agent'" [title]="agentDesc(a)" (click)="selectAgent(a)"><span>{{agentIcon(a)}}</span>{{a}}</button></div><div class="aem-options" *ngIf="showAemOptions"><strong>Select AEM business area</strong><div class="agent-pills" role="group" aria-label="AEM business areas"><button type="button" class="agent-pill" *ngFor="let area of lobs" (click)="selectAemLob(area)">{{area}}</button></div></div></div>
+  </ng-template>
+
+  <main class="main">
+    <header class="topbar"><button class="back-agents" type="button" (click)="returnToAgents()" title="Browse all agents">← All Agents</button><div class="top-title"><ng-container *ngIf="activeTab==='Home' && hasMessages();else plainTitle"><span class="agent-icon">{{agentIcon(agent)}}</span><strong>{{agent}}</strong><small>{{agentDesc(agent)}}</small></ng-container><ng-template #plainTitle><strong>{{activeTab==='Home'?'OpsMate':activeTab}}</strong></ng-template></div></header>
+    <section class="workspace" *ngIf="activeTab==='Home';else otherPage">
+      <div class="prompt-library" *ngIf="showPromptLibrary"><div class="library-header"><strong>Prompt library</strong><button (click)="showPromptLibrary=false" aria-label="Close prompt library">✕</button></div><p>Start with a template, then customize your request.</p><button *ngFor="let p of prompts" (click)="usePrompt(p.question)">{{p.title}} <small>{{p.question}}</small></button><button (click)="usePrompt('Review this Angular component and suggest refactoring improvements')">Code review <small>Review this Angular component and suggest refactoring improvements</small></button></div>
+      <div class="chat-scroll" *ngIf="hasMessages()">
+        <div class="conversation">
+          <div class="message" *ngFor="let m of messages();trackBy:trackById" [class.from-user]="m.role==='user'">
+            <div class="message-avatar" *ngIf="m.role!=='user'"><img src="/assets/vanguard-v.png" alt="Vanguard" class="message-vanguard-logo" /></div>
+            <div class="message-content" [title]="m.time">
+              <p>{{m.text}}</p>
+              <div class="result" *ngIf="m.result as r"><div class="result-heading"><strong>{{r.title}}</strong><span class="result-type">{{r.responseType}}</span></div>
+                <div class="metric-strip" *ngIf="r.data?.highlights?.length"><div class="metric" *ngFor="let h of r.data?.highlights"><small>{{h.label}}</small><strong>{{h.value}}</strong></div></div>
+                <div class="insight-sections" *ngIf="r.data?.sections?.length && r.responseType!=='architecture'"><section *ngFor="let section of r.data?.sections"><h4>{{section.heading}}</h4><p>{{section.body}}</p></section></div>
+                <ng-container [ngSwitch]="r.responseType"><div *ngSwitchCase="'architecture'" class="architecture-panel"><div class="arch-title">REFERENCE ARCHITECTURE <span>Illustrative · not a deployed topology</span></div><div class="arch-diagram" role="img" [attr.aria-label]="agent+' architecture diagram showing user, Angular UI, LangGraph orchestration, MCP plugins, AWS tools and data sources'"><div class="arch-node arch-user">◉ &nbsp; User / Operator</div><div class="arch-arrow">↓ Request</div><div class="arch-node arch-ui">▣ &nbsp; Angular UI · OpsMate</div><div class="arch-arrow">↓ Agent context</div><div class="arch-node arch-brain">✦ &nbsp; LangGraph · {{agent}}</div><div class="arch-arrow">↓ Governed tool calls</div><div class="arch-node arch-tools"><span>◇ MCP Plugins</span><span>⚙ Lambda Tools</span><span>☷ Policy & IAM</span></div><div class="arch-arrow">↓ Read-only demo sources</div><div class="arch-node arch-data"><span>▤ S3 CSV Lookup</span><span>⌕ CloudWatch Logs</span><span>▦ Operational APIs</span></div><div class="arch-foot">↳ Results returned as tables, summaries, status cards and logs</div></div><div class="insight-sections"><section *ngFor="let section of r.data?.sections"><h4>{{section.heading}}</h4><p>{{section.body}}</p></section></div></div><div *ngSwitchCase="'status'" class="status-box"><span class="healthy">● {{r.data?.status}}</span><dl><div *ngFor="let entry of r.data?.details | keyvalue"><dt>{{entry.key}}</dt><dd>{{entry.value}}</dd></div></dl></div>
+                <div *ngSwitchCase="'logs'"><div class="result-tools"><span>{{r.data?.logs?.length}} sample entries</span><select [(ngModel)]="selectedLevel" aria-label="Filter log level"><option>ALL</option><option>ERROR</option><option>WARN</option></select></div><div class="table-wrap"><table><thead><tr><th>Time</th><th>Level</th><th>Service</th><th>Message</th></tr></thead><tbody><tr *ngFor="let log of getLogs(r)"><td>{{log.time}}</td><td><span class="log-level" [class.error]="log.level==='ERROR'">{{log.level}}</span></td><td>{{log.service}}</td><td>{{log.message}}</td></tr></tbody></table></div></div>
+                <ng-container *ngSwitchCase="'dashboard'"><div class="hr-dashboard" *ngIf="r.data?.dashboard as d">
+                  <div class="hr-dashboard-head"><div><strong>Workforce Overview</strong><small>{{d.period}} · Synthetic demonstration data</small></div><span class="hr-demo-tag">DEMO DATA</span></div>
+                  <div class="hr-kpis"><div class="hr-kpi" *ngFor="let k of d.kpis"><small>{{k.label}}</small><strong>{{k.value}}</strong><span>{{k.change}}</span></div></div>
+                  <div class="hr-charts">
+                    <section class="hr-chart-card"><h4>Headcount trend</h4><p>Monthly workforce growth</p><div class="hr-vertical-chart" role="img" aria-label="Headcount rises from 2290 in January to 2480 in June"><div class="hr-vcol" *ngFor="let point of d.headcount"><span class="hr-vvalue">{{point.value}}</span><div class="hr-vtrack"><div class="hr-vbar" [style.height.%]="percent(point.value,maxValue(d.headcount))"></div></div><small>{{point.month}}</small></div></div></section>
+                    <section class="hr-chart-card"><h4>Department distribution</h4><p>Employees by function</p><div class="hr-horizontal-chart"><div class="hr-hrow" *ngFor="let dep of d.departments"><div class="hr-hlabel"><span>{{dep.name}}</span><strong>{{dep.value}}</strong></div><div class="hr-htrack"><div class="hr-hbar" [style.width.%]="percent(dep.value,maxValue(d.departments))"></div></div></div></div></section>
+                    <section class="hr-chart-card"><h4>Attrition rate</h4><p>Illustrative annualized rate</p><div class="hr-donut-wrap"><div class="hr-donut" [style.--rate]="d.attritionRate"><div><strong>{{d.attritionRate}}%</strong><small>Attrition</small></div></div><div class="hr-donut-note"><span>● Retained employees</span><span>● Attrition</span></div></div></section>
+                    <section class="hr-chart-card"><h4>Hiring pipeline</h4><p>Candidate conversion by stage</p><div class="hr-horizontal-chart"><div class="hr-hrow" *ngFor="let step of d.hiring"><div class="hr-hlabel"><span>{{step.stage}}</span><strong>{{step.value}}</strong></div><div class="hr-htrack"><div class="hr-hbar hr-funnel" [style.width.%]="percent(step.value,maxValue(d.hiring))"></div></div></div></div></section>
+                  </div>
+                  <div class="hr-insights"><h4>✦ Key insights</h4><p *ngFor="let insight of d.insights">{{insight}}</p></div>
+                </div></ng-container>
+                <div *ngSwitchCase="'table'" class="table-wrap"><table><thead><tr><th *ngFor="let col of r.data?.columns">{{col}}</th></tr></thead><tbody><tr *ngFor="let row of r.data?.rows"><td *ngFor="let cell of row">{{cell}}</td></tr></tbody></table></div>
+                <ol *ngSwitchCase="'workflow'" class="steps"><li *ngFor="let step of r.data?.steps">{{step}}</li></ol></ng-container><div class="source">ⓘ {{r.sources?.[0]}} · {{r.requestId}}</div></div>
+              <div class="message-actions" *ngIf="m.role==='assistant' && !m.greeting"><button class="copy-button" (click)="copy(m.text)" aria-label="Copy assistant response">⧉ Copy</button><button class="copy-button" (click)="regenerate()" [disabled]="busy" aria-label="Regenerate response">↻ Regenerate</button></div>
+            </div>
+          </div>
+          <div class="recommendations" *ngIf="messages().length===1 && !busy"><div class="rec-heading">✦ Suggested questions <small>Choose a demo scenario</small></div><div class="rec-grid"><button *ngFor="let item of suggestions" (click)="send(item.question)"><strong>{{item.label}}</strong><span>{{item.question}} ↗</span></button></div></div><div class="followups" *ngIf="messages().length>2 && !busy"><span>Continue exploring</span><button *ngFor="let item of followUps" (click)="send(item.question)">{{item.label}} ↗</button></div>
+          <div class="thinking" *ngIf="busy"><span>✦</span> OpsMate is preparing a sample response<span class="dots">...</span></div>
+          <div id="chat-bottom"></div>
+        </div>
+      </div>
+      <div class="welcome" *ngIf="!hasMessages()">
+        <div class="greeting"><img class="welcome-vanguard-logo" src="/assets/vanguard-v.png" alt="Vanguard logo"/><h1>Welcome, OpsMate</h1></div>
+        <ng-container *ngTemplateOutlet="agentPills"></ng-container>
+        <ng-container *ngTemplateOutlet="composerTpl"></ng-container>
+        <p class="disclaimer">Prototype · Synthetic data · No live AI or code execution.</p>
+      </div>
+      <div class="composer-area" *ngIf="hasMessages()"><div class="chat-navigation"><button type="button" (click)="returnToAgents()">← Switch agent</button><span>{{agent}}{{agent==='AEM Agent'?' / '+lob:''}}</span></div><div class="aem-switch" *ngIf="agent==='AEM Agent'"><span>AEM area: {{lob}}</span><button type="button" (click)="showAemOptions=!showAemOptions">Change area</button><div class="agent-pills" *ngIf="showAemOptions"><button type="button" class="agent-pill" *ngFor="let area of lobs" (click)="selectAemLob(area)">{{area}}</button></div></div><ng-container *ngTemplateOutlet="composerTpl"></ng-container><p class="disclaimer">Prototype · Synthetic data · No live AI or code execution.</p></div>
+    </section>
+    <ng-template #otherPage><section class="placeholder-page"><div class="spark big">✦</div><h1>{{activeTab}}</h1><p *ngIf="activeTab==='Agents'">Pick an agent to open its chat.</p><ng-container *ngIf="activeTab==='Agents'"><ng-container *ngTemplateOutlet="agentPills"></ng-container></ng-container><p *ngIf="activeTab==='Plugins'">Prototype capabilities: AEM page health, CloudWatch-style log viewer, S3 CSV table, workflow status. All currently use mock data.</p><p *ngIf="activeTab==='Reports'">Reporting is not connected in this prototype. Preserve your existing NestJS/Arize reports route when integrating into the real application.</p><button class="primary" (click)="setTab('Home')">Return to assistant →</button></section></ng-template>
+  </main>
+</div>

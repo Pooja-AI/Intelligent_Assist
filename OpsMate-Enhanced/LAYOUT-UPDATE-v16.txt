@@ -1,0 +1,1 @@
+v16: Moved six agent selection buttons above welcome chat composer. AEM sub-options remain with the agent selector. No chat behavior changed.

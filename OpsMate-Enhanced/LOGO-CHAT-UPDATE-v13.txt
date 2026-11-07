@@ -1,0 +1,2 @@
+Replaced the assistant-message sparkle glyph with the bundled Vanguard V PNG.
+The image is served from src/assets/vanguard-v.png through angular.json.
