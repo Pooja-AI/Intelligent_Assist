@@ -27,14 +27,34 @@
   </aside>
   <div class="search-overlay" *ngIf="showSearch" (click)="closeSearch()"><div class="search-modal" role="dialog" aria-label="Search conversations" (click)="$event.stopPropagation()" (keydown.escape)="closeSearch()"><div class="search-head"><span>⌕</span><input id="history-search-input" [(ngModel)]="historySearch" placeholder="Search chats..." aria-label="Search conversations" autocomplete="off"/><button class="icon-button" (click)="closeSearch()" aria-label="Close search">✕</button></div><div class="search-list"><button *ngFor="let h of filteredHistory" (click)="openHistory(h.index)" [title]="h.name"><strong>{{h.name}}</strong><small>{{h.agent}} · {{h.count}} messages</small></button><p class="muted hint" *ngIf="!history().length">No conversations yet. Your chats will appear here.</p><p class="muted hint" *ngIf="history().length && !filteredHistory.length">No chats match your search.</p></div></div></div>
 
+  <ng-template #areaControls>
+    <div class="area-change-wrap" *ngIf="(agentSelected || areaSelectionPending) && currentAreas.length">
+      <div class="area-change-header">
+        <span class="current-area-label">{{agent}} <span class="area-divider">·</span> <strong>{{currentArea || 'Select a business area'}}</strong></span>
+        <button type="button" class="change-area-button" (click)="toggleChangeArea()" [attr.aria-expanded]="showChangeAreaPicker || areaSelectionPending" aria-controls="change-area-options">{{(showChangeAreaPicker || areaSelectionPending) ? 'Close areas' : 'Change area'}} <span aria-hidden="true">{{(showChangeAreaPicker || areaSelectionPending) ? '⌃' : '⌄'}}</span></button>
+      </div>
+      <div id="change-area-options" class="change-area-options" *ngIf="showChangeAreaPicker || areaSelectionPending" role="group" [attr.aria-label]="'Choose '+agent+' business area'">
+        <button type="button" class="agent-pill" *ngFor="let area of currentAreas" [class.selected]="currentArea===area" [attr.aria-pressed]="currentArea===area" (click)="selectArea(area)">{{area}}</button>
+      </div>
+    </div>
+  </ng-template>
   <ng-template #composerTpl>
     <form class="composer" (ngSubmit)="send()">
       <textarea name="query" [(ngModel)]="query" placeholder="How can I help you today?" rows="1" aria-label="Message OpsMate" (input)="autoGrow($event)" (keydown)="onComposerKeydown($event)"></textarea>
-      <div class="composer-bottom"><span class="agent-chip" *ngIf="hasMessages()">{{agentIcon(agent)}} {{agent}}{{agent==='AEM Agent' ? ' · '+lob : ''}}</span><span class="agent-chip" *ngIf="!hasMessages()">✦ Select an agent</span><button type="submit" class="send" [disabled]="!query.trim()||busy" aria-label="Send message">↑</button></div>
+      <div class="composer-bottom">
+        <div class="composer-agent-controls">
+          <label class="sr-only" for="composer-agent-select">Select an agent</label>
+          <select id="composer-agent-select" class="composer-agent-select" name="composerAgent" [ngModel]="(agentSelected || areaSelectionPending) ? agent : ''" (ngModelChange)="onAgentDropdownChange($event)" aria-label="Select an agent">
+            <option value="">Select an agent</option>
+            <option *ngFor="let a of agents" [value]="a">{{a}}</option>
+          </select>
+        </div>
+        <button type="submit" class="send" [disabled]="!query.trim()||busy||!agentSelected" aria-label="Send message">↑</button>
+      </div>
     </form>
   </ng-template>
   <ng-template #agentPills>
-    <div class="agent-selection"><div class="agent-pills" role="group" aria-label="Available agents"><button type="button" class="agent-pill" *ngFor="let a of agents" [class.selected]="showAemOptions && a==='AEM Agent'" [title]="agentDesc(a)" (click)="selectAgent(a)"><span>{{agentIcon(a)}}</span>{{a}}</button></div><div class="aem-options" *ngIf="showAemOptions"><strong>Select AEM business area</strong><div class="agent-pills" role="group" aria-label="AEM business areas"><button type="button" class="agent-pill" *ngFor="let area of lobs" (click)="selectAemLob(area)">{{area}}</button></div></div></div>
+    <div class="agent-selection"><div class="agent-pills" role="group" aria-label="Available agents"><button type="button" class="agent-pill" *ngFor="let a of agents" [class.selected]="(agentSelected || areaSelectionPending) && agent===a" [attr.aria-pressed]="(agentSelected || areaSelectionPending) && agent===a" [title]="agentDesc(a)" (click)="selectAgent(a)"><span>{{agentIcon(a)}}</span>{{a}}</button></div></div>
   </ng-template>
 
 
@@ -94,10 +114,13 @@
       <div class="welcome" *ngIf="!hasMessages()">
         <div class="greeting"><img class="welcome-vanguard-logo" src="/assets/vanguard-v.png" alt="Vanguard logo"/><h1>Welcome, OpsMate</h1></div>
         <ng-container *ngTemplateOutlet="agentPills"></ng-container>
+        <ng-container *ngTemplateOutlet="areaControls"></ng-container>
         <ng-container *ngTemplateOutlet="composerTpl"></ng-container>
         <p class="disclaimer">Prototype · Synthetic data · No live AI or code execution.</p>
       </div>
-      <div class="composer-area" *ngIf="hasMessages()"><div class="chat-navigation"><button type="button" (click)="returnToAgents()">← Switch agent</button><span>{{agent}}{{agent==='AEM Agent'?' / '+lob:''}}</span></div><div class="aem-switch" *ngIf="agent==='AEM Agent'"><span>AEM area: {{lob}}</span><button type="button" (click)="showAemOptions=!showAemOptions">Change area</button><div class="agent-pills" *ngIf="showAemOptions"><button type="button" class="agent-pill" *ngFor="let area of lobs" (click)="selectAemLob(area)">{{area}}</button></div></div><ng-container *ngTemplateOutlet="composerTpl"></ng-container><p class="disclaimer">Prototype · Synthetic data · No live AI or code execution.</p></div>
+      <div class="composer-area" *ngIf="hasMessages()">
+        <ng-container *ngTemplateOutlet="areaControls"></ng-container>
+        <ng-container *ngTemplateOutlet="composerTpl"></ng-container><p class="disclaimer">Prototype · Synthetic data · No live AI or code execution.</p></div>
     </section>
     <ng-template #otherPage><section class="placeholder-page"><div class="spark big">✦</div><h1>{{activeTab}}</h1><p *ngIf="activeTab==='Agents'">Pick an agent to open its chat.</p><ng-container *ngIf="activeTab==='Agents'"><ng-container *ngTemplateOutlet="agentPills"></ng-container></ng-container><p *ngIf="activeTab==='Plugins'">Prototype capabilities: AEM page health, CloudWatch-style log viewer, S3 CSV table, workflow status. All currently use mock data.</p><p *ngIf="activeTab==='Reports'">Reporting is not connected in this prototype. Preserve your existing NestJS/Arize reports route when integrating into the real application.</p><button class="primary" (click)="setTab('Home')">Return to assistant →</button></section></ng-template>
   </main>

@@ -210,3 +210,24 @@ button:disabled{cursor:not-allowed;opacity:.4}
 .feedback-modal>p{font-size:12px;line-height:1.6;color:var(--muted);margin:0 0 5px}
 .feedback-modal label{font-size:12px;font-weight:700}.feedback-modal select,.feedback-modal textarea{width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:9px;padding:10px 12px;font:inherit;font-size:13px;background:var(--bg);color:var(--text)}
 .feedback-modal-footer{display:flex;justify-content:flex-end;gap:9px;margin-top:7px}.feedback-modal-footer button{border:1px solid var(--border);border-radius:9px;background:var(--panel);padding:9px 13px;cursor:pointer;font-weight:600;font-size:12px}.feedback-modal-footer .report-submit{background:var(--primary);border-color:var(--primary);color:#fff}.feedback-close{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:16px}
+
+/* v18: accessible agent selector inside the message composer */
+.composer-agent-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.composer-agent-select{appearance:auto;max-width:220px;min-width:145px;border:1px solid #efd8dc;border-radius:999px;background:var(--soft);color:var(--primary);padding:7px 11px;font:inherit;font-size:12px;cursor:pointer;outline-offset:2px}
+.composer-agent-select.area-select{min-width:88px;max-width:120px}
+.composer-agent-select:focus-visible{outline:2px solid var(--primary)}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(max-width:480px){.composer-agent-select{max-width:165px;min-width:120px}.composer-agent-select.area-select{min-width:75px}}
+
+/* Active agent and business-area states, shared across selection surfaces */
+.agent-pill.selected{border-color:var(--primary);background:var(--soft);color:var(--primary);font-weight:600}
+.area-change-wrap{margin:0 0 10px}
+.area-change-header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.current-area-label{font-size:12px;color:var(--muted,#667085)}
+.current-area-label strong{color:var(--primary)}
+.area-divider{padding:0 5px}
+.change-area-button{border:1px solid var(--border);background:var(--soft);color:var(--primary);border-radius:999px;padding:7px 13px;font-size:12px;cursor:pointer}
+.change-area-button:hover{border-color:var(--primary)}
+.change-area-options{display:flex;gap:8px;flex-wrap:wrap;padding:12px 0 4px}
+.change-area-options .agent-pill{font-size:12px;padding:7px 12px}
+.change-area-button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}

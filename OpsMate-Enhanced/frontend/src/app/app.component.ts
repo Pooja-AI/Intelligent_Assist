@@ -6,6 +6,32 @@ import { Message, PluginResult } from './models';
 @Component({selector:'app-root',standalone:true,imports:[CommonModule,FormsModule],templateUrl:'./app.component.html',styleUrl:'./app.component.css'})
 export class AppComponent {
   agent='AEM Agent'; lob='CORP'; mode='Assistant'; darkMode=false; historySearch=''; showPromptLibrary=false; lastQuestion=''; query=''; sidebarOpen=true; busy=false; activeTab='Home'; selectedLevel='ALL'; showRecommendations=true;
+  agentSelected=false;
+  areaSelectionPending=false;
+  showChangeAreaPicker=false;
+  readonly agentAreas: Record<string,string[]> = {
+    'AEM Agent':['CORP','PiTech','INS','FAS','INTL'],
+    'Archer':['Risk Management','Compliance','Audit','Third-Party Risk'],
+    'MarTech Operations':['Campaigns','Analytics','Marketing Automation','Digital Channels'],
+    'HR Operations':['Onboarding','Employee Services','Benefits','Payroll'],
+    'ETC Agent':['Application Support','Infrastructure','Incident Management','Change Management'],
+    'HR Tableau':['Workforce Analytics','Headcount','Attrition','Recruitment']
+  };
+  get currentAreas():string[]{return this.agentAreas[this.agent] || [];}
+  get currentArea():string{return this.lob;}
+  selectArea(value:string):void {
+    if(!value)return;
+    const changed=!this.agentSelected || this.areaSelectionPending || this.lob!==value;
+    if(changed)this.archiveChat();
+    this.lob=value;
+    this.agentSelected=true;
+    this.areaSelectionPending=false;
+    this.showAemOptions=false;
+    this.showChangeAreaPicker=false;
+    this.activeTab='Home';
+    this.lastQuestion='';
+    if(changed)this.messages.set([{id:Date.now(),role:'assistant',greeting:true,time:this.time(),text:`Hi, I am the ${this.agent} assistant for ${value}. Choose a recommendation or ask a question to explore this area.`}]);
+  }
   agents=['AEM Agent','Archer','MarTech Operations','HR Operations','ETC Agent','HR Tableau']; modes=['Assistant','Developer']; lobs=['CORP','PiTech','INS','FAS','INTL']; showAemOptions=false;
   prompts=[{icon:'◎',title:'Check page health',description:'Status and cache insights',question:'Check the cache status for /content/vanguard/en/home'},{icon:'⌕',title:'Analyze logs',description:'Investigate recent errors',question:'Search the logs for errors in the last hour'},{icon:'▤',title:'Query S3 data',description:'Look up structured records',question:'Query sample S3 CSV data'},{icon:'◇',title:'Track workflows',description:'Review tasks and approvals',question:'What is the current workflow status for my page?'}];
   feedback: Record<number, 'up' | 'down'> = {};
@@ -67,7 +93,7 @@ export class AppComponent {
     this.saveFeedback();
     this.closeReport();
   }
-  async send(question?:string) { const text=(question??this.query).trim(); this.lastQuestion=text; if(!text||this.busy)return; this.query=''; document.querySelectorAll('textarea').forEach(t=>(t as HTMLTextAreaElement).style.height=''); this.activeTab='Home'; this.messages.update(a=>[...a,{id:Date.now(),role:'user',text,time:this.time()}]);this.busy=true;
+  async send(question?:string) { const text=(question??this.query).trim(); this.lastQuestion=text; if(!text||this.busy||!this.agentSelected)return; this.query=''; document.querySelectorAll('textarea').forEach(t=>(t as HTMLTextAreaElement).style.height=''); this.activeTab='Home'; this.messages.update(a=>[...a,{id:Date.now(),role:'user',text,time:this.time()}]);this.busy=true;
     try { const result=await this.api.ask(text,this.agent,this.lob);this.messages.update(a=>[...a,{id:Date.now()+1,role:'assistant',text:result.summary,result,time:this.time()}]); }
     catch {this.messages.update(a=>[...a,{id:Date.now()+1,role:'assistant',text:'Something went wrong. Please try again.',time:this.time()}]);}
     finally {this.busy=false;setTimeout(()=>document.getElementById('chat-bottom')?.scrollIntoView({behavior:'smooth'}),30);}
@@ -81,11 +107,33 @@ export class AppComponent {
   regenerate(){if(this.busy||!this.lastQuestion)return;this.messages.update(a=>a.length && a[a.length-1].role==='assistant'?a.slice(0,-1):a);void this.send(this.lastQuestion);}
   exportChat(){const content=this.messages().map(m=>`## ${m.role==='user'?'You':'OpsMate'} — ${m.time}\n\n${m.text}`).join('\n\n');const blob=new Blob(['# OpsMate conversation (demo)\n\n'+content],{type:'text/markdown'});const url=URL.createObjectURL(blob);const link=document.createElement('a');link.href=url;link.download='opsmate-conversation.md';link.click();URL.revokeObjectURL(url);}
   usePrompt(value:string){this.query=value;this.showPromptLibrary=false;document.querySelector('textarea')?.focus();}
-  selectAgent(a:string){if(a==='AEM Agent'){this.showAemOptions=true;return;}this.showAemOptions=false;this.archiveChat();this.agent=a;this.activeTab='Home';this.lastQuestion='';this.messages.set([{id:Date.now(),role:'assistant',greeting:true,time:this.time(),text:this.agentGreeting(a)}]);setTimeout(()=>document.querySelector('textarea')?.focus(),30);}
-  selectAemLob(value:string){this.lob=value;this.showAemOptions=false;this.archiveChat();this.agent='AEM Agent';this.activeTab='Home';this.lastQuestion='';this.messages.set([{id:Date.now(),role:'assistant',greeting:true,time:this.time(),text:`Hi, I am the AEM Agent for ${value}. I can help with page health, cache status, and publish state.`}]);setTimeout(()=>document.querySelector('textarea')?.focus(),30);}
+  selectAgent(a:string){
+    if(!this.agentAreas[a])return;
+    // Always reopen the area picker, even when the same agent is selected again.
+    if(this.agentSelected)this.archiveChat();
+    this.agent=a;
+    this.lob='';
+    this.agentSelected=false;
+    this.areaSelectionPending=true;
+    this.showAemOptions=true;
+    this.showChangeAreaPicker=false;
+    this.activeTab='Home';
+    this.lastQuestion='';
+    this.query='';
+    this.messages.set([]);
+  }
+  toggleChangeArea():void {
+    if(!this.agentSelected && !this.areaSelectionPending)return;
+    this.showChangeAreaPicker=!this.showChangeAreaPicker;
+  }
+  selectAemLob(value:string){this.agent='AEM Agent';this.selectArea(value);}
+  onAgentDropdownChange(value:string):void {
+    if(!value){this.returnToAgents();this.activeTab='Home';return;}
+    this.selectAgent(value);
+  }
   agentGreeting(a:string){return ({'AEM Agent':'Hi, I am the AEM Agent. I can check page health, cache status and publish state.','Archer':'Hi, I am the Archer agent. How can I help?','MarTech Operations':'Hi, I am the MarTech Operations agent. How can I help?','HR Operations':'Hi, I am the HR Operations agent. How can I help?','ETC Agent':'Hi, I am the ETC Agent. How can I help?','HR Tableau':'Hi, I am the HR Tableau agent. How can I help?'} as Record<string,string>)[a]||'How can I help?';}
   agentPrompts(a:string){return this.suggestions.map(s=>s.question);}
-  returnToAgents(){this.archiveChat();this.messages.set([]);this.showAemOptions=false;this.activeTab='Agents';this.lastQuestion='';this.query='';}
+  returnToAgents(){this.agentSelected=false;this.areaSelectionPending=false;this.lob='';this.archiveChat();this.messages.set([]);this.showAemOptions=false;this.showChangeAreaPicker=false;this.activeTab='Agents';this.lastQuestion='';this.query='';}
   get suggestions(): {label:string;question:string}[] {
     const map:Record<string,{label:string;question:string}[]>={
       'AEM Agent':[
@@ -101,7 +149,9 @@ export class AppComponent {
       'ETC Agent':[{label:'Service lookup',question:'Show ETC service lookup table'},{label:'Recent errors',question:'Analyze ETC errors in logs'},{label:'Architecture',question:'Show ETC architecture diagram'}],
       'HR Tableau':[{label:'Workforce dashboard',question:'Show HR Tableau workforce analytics dashboard with charts'},{label:'Headcount trend',question:'Show headcount trend chart'},{label:'Attrition analysis',question:'Show attrition dashboard'},{label:'Hiring pipeline',question:'Show hiring funnel chart'},{label:'Department breakdown',question:'Show department workforce chart'},{label:'Dashboard lookup',question:'Show HR Tableau dashboard lookup table'},{label:'Metrics summary',question:'Summarize HR Tableau metrics'},{label:'Architecture',question:'Show HR Tableau reporting architecture diagram'}]
     };
-    return map[this.agent]||map['AEM Agent'];
+    const prompts=map[this.agent]||map['AEM Agent'];
+    const area=this.lob;
+    return area ? prompts.map(p=>({...p,question:p.question.replace(/CORP/g,area)+(this.agent!=='AEM Agent' ? ` for ${area}` : '')})) : prompts;
   }
   get followUps():{label:string;question:string}[]{
     const r=[...this.messages()].reverse().find(m=>m.role==='assistant'&&m.result)?.result;
@@ -130,6 +180,8 @@ export class AppComponent {
     this.archiveChat();
     this.messages.set([]);
     this.agent='AEM Agent';
+    this.agentSelected=false;
+    this.areaSelectionPending=false;
     this.lob='CORP';
     this.query='';
     this.lastQuestion='';
@@ -140,7 +192,7 @@ export class AppComponent {
     this.showSearch=false;
     this.activeTab='Home';
   }
-  openHistory(i:number){const h=this.history()[i];this.messages.set([...h.messages]);this.agent=h.agent;this.activeTab='Home';this.showSearch=false;}
+  openHistory(i:number){this.agentSelected=true;this.areaSelectionPending=false;const h=this.history()[i];this.messages.set([...h.messages]);this.agent=h.agent;this.activeTab='Home';this.showSearch=false;}
   setTab(tab:string){this.activeTab=tab;this.showAemOptions=false;}
   maxValue(values:{value:number}[] | undefined){return Math.max(1,...(values||[]).map(v=>v.value));}
   percent(value:number,max:number){return Math.round(value/Math.max(1,max)*100);}
