@@ -195,3 +195,18 @@ button:disabled{cursor:not-allowed;opacity:.4}
 /* Welcome page: agent selection above the chat composer. */
 .welcome .agent-selection{margin-bottom:22px}
 .welcome .agent-selection > .agent-pills{margin-top:0}
+
+/* v17: assistant response feedback toolbar and local demo reporting */
+.feedback-actions{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:9px}
+.feedback-button{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:32px;height:32px;padding:5px 7px;background:transparent;border:1px solid transparent;border-radius:8px;color:var(--muted);font-size:12px;cursor:pointer;transition:background .15s,color .15s}
+.feedback-button svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.feedback-button:hover,.feedback-button.selected{background:var(--soft);color:var(--primary)}
+.feedback-button.selected{border-color:var(--border)}
+.feedback-button:focus-visible,.feedback-modal button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.feedback-button:disabled{opacity:.45;cursor:not-allowed}
+.feedback-modal-backdrop{position:fixed;inset:0;background:#14141488;display:flex;align-items:center;justify-content:center;z-index:1100;padding:16px}
+.feedback-modal{width:min(430px,100%);padding:22px;background:var(--panel);color:var(--text);border:1px solid var(--border);border-radius:16px;box-shadow:0 20px 70px #0003;display:grid;gap:12px}
+.feedback-modal-header{display:flex;align-items:center;justify-content:space-between;gap:10px}.feedback-modal-header h3{font-size:17px;margin:0}
+.feedback-modal>p{font-size:12px;line-height:1.6;color:var(--muted);margin:0 0 5px}
+.feedback-modal label{font-size:12px;font-weight:700}.feedback-modal select,.feedback-modal textarea{width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:9px;padding:10px 12px;font:inherit;font-size:13px;background:var(--bg);color:var(--text)}
+.feedback-modal-footer{display:flex;justify-content:flex-end;gap:9px;margin-top:7px}.feedback-modal-footer button{border:1px solid var(--border);border-radius:9px;background:var(--panel);padding:9px 13px;cursor:pointer;font-weight:600;font-size:12px}.feedback-modal-footer .report-submit{background:var(--primary);border-color:var(--primary);color:#fff}.feedback-close{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:16px}

@@ -8,9 +8,65 @@ export class AppComponent {
   agent='AEM Agent'; lob='CORP'; mode='Assistant'; darkMode=false; historySearch=''; showPromptLibrary=false; lastQuestion=''; query=''; sidebarOpen=true; busy=false; activeTab='Home'; selectedLevel='ALL'; showRecommendations=true;
   agents=['AEM Agent','Archer','MarTech Operations','HR Operations','ETC Agent','HR Tableau']; modes=['Assistant','Developer']; lobs=['CORP','PiTech','INS','FAS','INTL']; showAemOptions=false;
   prompts=[{icon:'◎',title:'Check page health',description:'Status and cache insights',question:'Check the cache status for /content/vanguard/en/home'},{icon:'⌕',title:'Analyze logs',description:'Investigate recent errors',question:'Search the logs for errors in the last hour'},{icon:'▤',title:'Query S3 data',description:'Look up structured records',question:'Query sample S3 CSV data'},{icon:'◇',title:'Track workflows',description:'Review tasks and approvals',question:'What is the current workflow status for my page?'}];
+  feedback: Record<number, 'up' | 'down'> = {};
+  copiedMessageId: number | null = null;
+  reportMessageId: number | null = null;
+  reportReason = 'Incorrect or misleading information';
+  reportComment = '';
+  reportConfirmation: Record<number, boolean> = {};
+  private feedbackStorageKey = 'opsmate-demo-feedback-v1';
   messages=signal<Message[]>([]); history=signal<{name:string; agent:string; count:number; messages:Message[]}[]>([]); showSearch=false; showUserMenu=false;
   hasMessages=computed(()=>this.messages().length>0);
-  constructor(private api:MockApiService){}
+  constructor(private api:MockApiService){
+    try {
+      const stored = JSON.parse(localStorage.getItem(this.feedbackStorageKey) || '{}');
+      this.feedback = stored.feedback || {};
+      this.reportConfirmation = stored.reportConfirmation || {};
+    } catch { /* local storage may be unavailable */ }
+  }
+  private saveFeedback(): void {
+    try { localStorage.setItem(this.feedbackStorageKey, JSON.stringify({feedback:this.feedback,reportConfirmation:this.reportConfirmation})); } catch { /* no storage */ }
+  }
+  rateMessage(messageId:number, rating:'up'|'down'):void {
+    if(this.feedback[messageId]===rating) delete this.feedback[messageId];
+    else this.feedback[messageId]=rating;
+    this.saveFeedback();
+  }
+  async copyMessage(m:Message):Promise<void> {
+    let text=m.text;
+    if(m.result?.data?.columns?.length && m.result.data.rows?.length){
+      text+='\n\n'+m.result.data.columns.join('\t')+'\n'+m.result.data.rows.map(row=>row.join('\t')).join('\n');
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      this.copiedMessageId=m.id;
+    } catch {
+      // Clipboard permissions vary by browser; don't show a false success state.
+      this.copiedMessageId=null;
+    }
+  }
+  openReport(messageId:number):void {
+    this.reportMessageId=messageId;
+    this.reportReason='Incorrect or misleading information';
+    this.reportComment='';
+  }
+  closeReport():void {this.reportMessageId=null;this.reportComment='';}
+  submitReport():void {
+    if(this.reportMessageId===null || !this.reportReason)return;
+    const messageId=this.reportMessageId;
+    const message=this.messages().find(m=>m.id===messageId);
+    if(!message)return;
+    // Prototype only: store locally, never imply submission to a backend.
+    try {
+      const key='opsmate-demo-reports-v1';
+      const existing=JSON.parse(localStorage.getItem(key)||'[]');
+      existing.push({messageId,reason:this.reportReason,comment:this.reportComment,response:message.text,agent:this.agent,createdAt:new Date().toISOString()});
+      localStorage.setItem(key,JSON.stringify(existing));
+    } catch { /* in-memory confirmation if browser storage is blocked */ }
+    this.reportConfirmation[messageId]=true;
+    this.saveFeedback();
+    this.closeReport();
+  }
   async send(question?:string) { const text=(question??this.query).trim(); this.lastQuestion=text; if(!text||this.busy)return; this.query=''; document.querySelectorAll('textarea').forEach(t=>(t as HTMLTextAreaElement).style.height=''); this.activeTab='Home'; this.messages.update(a=>[...a,{id:Date.now(),role:'user',text,time:this.time()}]);this.busy=true;
     try { const result=await this.api.ask(text,this.agent,this.lob);this.messages.update(a=>[...a,{id:Date.now()+1,role:'assistant',text:result.summary,result,time:this.time()}]); }
     catch {this.messages.update(a=>[...a,{id:Date.now()+1,role:'assistant',text:'Something went wrong. Please try again.',time:this.time()}]);}
